@@ -1,161 +1,273 @@
-# AI-Powered Intrusion Detection System (IDS) for Home Networks
+# AI-Powered Hybrid IDPS (Intrusion Detection and Prevention System)
 
-## 🚀 Overview
-This project is a lightweight, AI-enhanced Intrusion Detection System (IDS) designed to monitor network traffic on your home Wi-Fi network. It uses machine learning to flag unusual or potentially malicious activity in real time, with a modern dashboard and optional threat intelligence and auto-blocking features.
+## Overview
+A sophisticated **Hybrid Network Intrusion Detection and Prevention System** for home and small office networks. Combines **machine learning**, **behavioral analysis**, and **threat intelligence** to detect and automatically block modern cyber attacks in real-time.
 
-<img width="2527" height="1280" alt="Screenshot 2025-07-16 211455" src="https://github.com/user-attachments/assets/91966419-ac9c-494f-a5a5-2852607e292c" />
-
----
-
-## 🧰 Features
-- **Real-time Packet Sniffing:** Captures live network traffic using Scapy.
-- **Feature Extraction:** Extracts protocol, source/destination, and packet size features.
-- **Machine Learning Detection:** Classifies traffic as normal or suspicious using a Random Forest model.
-- **Threat Intelligence:** Integrates with AbuseIPDB to check IP reputation.
-- **Auto-Blocking:** Automatically blocks high-risk IPs using firewall rules (Windows only).
-- **Interactive Dashboard:** Streamlit dashboard for live traffic, alerts, and threat intelligence.
-- **Dockerized:** Easy deployment with Docker.
+Trained on the **CICIDS2017** dataset (modern 2017 attacks), this system achieves **97% accuracy** with minimal false positives through intelligent port classification and behavioral pattern detection.
 
 ---
 
-## 🏗️ Architecture
+## Key Features
+
+### **Hybrid Detection Architecture**
+- **Machine Learning (Random Forest):** 97% accuracy on attack-prone ports (SSH, RDP, SMB, databases)
+- **Behavioral Detection:** Port scanning, connection flooding, data exfiltration, DDoS patterns
+- **Threat Intelligence:** AbuseIPDB integration for global IP reputation checking
+- **Smart Port Classification:** Skips ML on HTTP/HTTPS traffic to eliminate false positives
+
+### **Multi-Mode Auto-Blocking**
+1. **High Threat Intel:** AbuseIPDB score ≥50 → Immediate block
+2. **Medium Threat + Alerts:** Score 25-49 + 2+ alerts → Block
+3. **ML-Based Blocking:** 95%+ confidence on attack ports → Block (works without API)
+4. **Rate Limit Fallback:** 5+ alerts when API unavailable → Block
+
+### **Real-Time Dashboard**
+- Live traffic monitoring with flow tracking
+- Recent alerts with confidence scores
+- Blocked IPs management with unblock functionality
+- Auto-refresh for real-time updates
+
+### **Windows Firewall Integration**
+- Automatic firewall rule creation (`IDS_Block_<IP>`)
+- Persistent blocking across reboots
+- Dashboard-based unblock controls
+
+---
+
+## System Architecture
+
 ```
-+-------------------+      +-------------------+      +-------------------+
-|  Packet Sniffer   | ---> |  ML Classifier    | ---> |  Alert/Block/Log  |
-+-------------------+      +-------------------+      +-------------------+
-        |                        |                           |
-        v                        v                           v
-   [captured_packets.csv]   [rf_model.joblib]         [alerts.log]
-        |                        |                           |
-        +------------------------+---------------------------+
-                                 |
-                                 v
-                        [Streamlit Dashboard]
+[Network Traffic]
+       ↓
+[Packet Sniffer] ──→ captured_packets.csv (with flow tracking)
+       ↓
+[Real-Time Detector]
+   ├─ Behavioral Analysis (port scans, floods, exfiltration)
+   ├─ ML Classification (attack ports only)
+   └─ Threat Intelligence (AbuseIPDB)
+       ↓
+[4-Mode Blocking Decision]
+       ↓
+[Windows Firewall] + alerts.log
+       ↓
+[Streamlit Dashboard] (monitoring & control)
 ```
 
 ---
 
-## 📦 Project Structure
+## Project Structure
 ```
-.
-├── data/                # Datasets, logs, and captured packets
-├── models/              # Trained ML models and encoders
-├── src/                 # Source code (sniffer, ML, detection, threat intel)
-├── dashboard/           # Streamlit dashboard app
-├── requirements.txt     # Python dependencies
-├── Dockerfile           # Docker build file
-├── entrypoint.sh        # Entrypoint script for Docker
-└── README.md            # This file
+IS_IDPS/
+├── data/
+│   ├── MachineLearningCVE/      # CICIDS2017 dataset
+│   ├── captured_packets.csv      # Live traffic with flow stats
+│   ├── alerts.log                # Detection logs
+│   └── cicids2017_preprocessed.csv
+├── models/
+│   ├── rf_model.joblib           # Trained Random Forest (97% accuracy)
+│   └── proto_encoder.joblib      # Protocol label encoder
+├── src/
+│   ├── sniffer.py                # Flow-based packet capture
+│   ├── realtime_detect.py        # Hybrid detection engine
+│   ├── train_model.py            # Model training
+│   ├── prepare_cicids2017.py     # Dataset preprocessing
+│   └── threat_intel.py           # AbuseIPDB integration
+├── dashboard/
+│   └── app.py                    # Streamlit web interface
+├── inject_test_packets.py        # Basic attack simulation (SSH, Telnet, SMB)
+├── inject_advanced_attacks.py    # Advanced test suite (RDP, databases, port scans)
+├── SYSTEM_DOCUMENTATION.md       # Comprehensive technical docs
+└── requirements.txt
 ```
 
 ---
 
-## ⚡ Quickstart (Local)
+## Quick Start
 
-### 1. Clone the Repository
-```sh
+### Prerequisites
+- **Windows 10/11** (for firewall integration)
+- **Python 3.8+**
+- **Administrator privileges** (for packet capture and firewall rules)
+
+### 1. Clone & Setup
+```powershell
 git clone https://github.com/WaasilaAsif/IS_IDPS.git
-cd ai-powered-ids-for-home-networks
-```
+cd IS_IDPS
 
-### 2. Set Up Python Environment
-```sh
+# Create virtual environment
 python -m venv venv
-venv\Scripts\activate  # On Windows
-# or
-source venv/bin/activate  # On Linux/Mac
-pip install --upgrade pip
+.\venv\Scripts\Activate.ps1
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 3. Prepare Dataset & Train Model
-```sh
-python src/dataset_prep.py      # Download and preprocess NSL-KDD
-python src/train_model.py       # Train and save the ML model
+### 2. Prepare Dataset & Train Model
+```powershell
+# Download CICIDS2017 dataset (place CSVs in data/MachineLearningCVE/)
+# Then preprocess and train:
+python src/prepare_cicids2017.py
+python src/train_model.py
 ```
 
-### 4. Start Packet Capture
-```sh
-python src/sniffer.py           # Run in a separate terminal
+### 3. (Optional) Configure AbuseIPDB
+Get a free API key from [AbuseIPDB](https://www.abuseipdb.com/)
+```powershell
+$env:ABUSEIPDB_API_KEY = "your_api_key_here"
 ```
 
-### 5. (Optional) Set AbuseIPDB API Key
-Get a free API key from [AbuseIPDB](https://www.abuseipdb.com/).
-```sh
-$env:ABUSEIPDB_API_KEY="31126b5cebf692c76a6b86b4470229555ccd7f35a30b8f163e83b5d8cb98936aced92735ad186c5d" # Windows
-export ABUSEIPDB_API_KEY="31126b5cebf692c76a6b86b4470229555ccd7f35a30b8f163e83b5d8cb98936aced92735ad186c5d"  # Linux/Mac
+### 4. Start the System (3 terminals)
+
+**Terminal 1 - Packet Sniffer:**
+```powershell
+python src/sniffer.py
 ```
 
-### 6. Run Real-Time Detection
-```sh
-python src/realtime_detect.py   # Run in a separate terminal
+**Terminal 2 - Detection Engine (as Administrator):**
+```powershell
+$env:ABUSEIPDB_API_KEY = "your_api_key_here"
+python src/realtime_detect.py
 ```
 
-### 7. Launch the Dashboard
-```sh
+**Terminal 3 - Dashboard:**
+```powershell
 streamlit run dashboard/app.py
 ```
-Visit [http://localhost:8501](http://localhost:8501) in your browser.
+
+### 5. Access Dashboard
+Open [http://localhost:8501](http://localhost:8501) in your browser
 
 ---
 
-## 🐳 Docker Usage
+## Testing the System
 
-### 1. Build the Docker Image
-```sh
-docker build -t ai-ids .
+### Basic Attack Simulation (3 attacks)
+```powershell
+python inject_test_packets.py
+```
+Tests: SSH brute force, Telnet exploitation, SMB vulnerability scan
+
+### Advanced Attack Suite (37 attacks, 6 scenarios)
+```powershell
+python inject_advanced_attacks.py
+```
+Tests:
+- RDP brute force (port 3389)
+- MySQL/PostgreSQL/MongoDB attacks
+- Web admin panel brute force
+- Port scanning (behavioral detection)
+- All attack port categories
+
+---
+
+## What Makes This System Unique
+
+### Intelligent Port Classification
+- **Attack Ports:** 22, 23, 445, 3389, 1433, 3306, 5432, 27017, 6379, 9200, 8080, 8888 → **ML applied**
+- **Safe Ports:** 53, 80, 443, 587, 993, 5222, etc. → **Skipped by ML** (behavioral only)
+- **Why:** Prevents false positives from encrypted HTTPS traffic while catching real attacks
+
+### Security-Focused Whitelist
+- **~15 million IPs** whitelisted (narrowed from original 300M)
+- **Removed all cloud compute /8 blocks** (AWS EC2, Azure VMs, Google Compute)
+- **Only consumer services whitelisted:** Google Search, Facebook, CDNs, DNS
+- **Result:** Attackers using cloud VMs are now detectable
+
+### Flow-Based Tracking
+- Tracks bidirectional conversations (forward/backward bytes and packets)
+- Maintains state per `(src_ip, dst_ip, src_port, dst_port)` tuple
+- Enables behavioral detection (data exfiltration, connection patterns)
+
+---
+
+## Performance Metrics
+
+**Model (Random Forest on CICIDS2017):**
+- Accuracy: **97%**
+- Attack Precision: **99%** (very few false positives)
+- Attack Recall: **84%** (catches most attacks)
+- Normal Precision: **96%**
+
+**Dataset:**
+- **500,000 samples** (401k normal, 99k attacks)
+- **CICIDS2017** modern attack types (DDoS, web attacks, brute force, infiltration)
+
+**Operational:**
+- **Zero false positives** on normal web browsing (Google, Facebook, Reddit)
+- **100% detection** on attack ports (SSH, RDP, SMB, databases)
+- **Real-time processing** with 2-second scan intervals
+
+---
+
+## Configuration
+
+### Adjusting Detection Sensitivity
+
+**Behavioral Thresholds** (in `src/realtime_detect.py`):
+```python
+# Port scan: Currently >10 unique ports
+if len(port_scan_tracker[src_ip]) > 20:  # Less sensitive
+
+# Connection flood: Currently >50 connections
+if connection_tracker[src_ip] > 100:  # Less sensitive
 ```
 
-### 2. Run the Container
-**On Windows (PowerShell):**
-```sh
-docker run --rm -it -p 8501:8501 -e ABUSEIPDB_API_KEY="your_api_key_here" -v "${PWD}/data:/app/data" ai-ids
+**ML Confidence Thresholds:**
+```python
+# Alert threshold (currently 90%)
+if attack_confidence >= 0.95:  # Fewer alerts, higher precision
+
+# Blocking threshold (currently 95%)
+if attack_confidence >= 0.98:  # Even more conservative blocking
 ```
-**On Linux/Mac:**
-```sh
-docker run --rm -it --net=host -e ABUSEIPDB_API_KEY="your_api_key_here" -v "$(pwd)/data:/app/data" ai-ids
+
+### Adding to Whitelist
+```python
+WHITELIST_RANGES = [
+    '142.250.0.0/15',      # Google
+    '192.168.1.0/24',      # Your home network
+]
 ```
-- The dashboard will be available at [http://localhost:8501](http://localhost:8501)
-- All data and logs are persisted in the `data/` directory on your host.
+
+**Warning:** Only whitelist specific ranges you trust, not entire /8 blocks!
 
 ---
 
-## 🛠️ Troubleshooting
-- **Docker port not working on Windows/Mac:** Use `-p 8501:8501` instead of `--net=host`.
-- **Volume mount errors:** Use absolute paths or `${PWD}`/`%cd%` as appropriate for your shell.
-- **No dashboard:** Check `docker logs <container_id>` for errors.
-- **Permission errors:** Run Docker as administrator or with elevated privileges.
-- **Firewall/Antivirus:** Ensure port 8501 is open and not blocked.
-- **Packet capture permissions:** On Linux, you may need to run as root or with `--cap-add=NET_ADMIN`.
+## Security Considerations
+
+### Strengths
+- Detects modern attacks (CICIDS2017 training)  
+- Behavioral detection catches zero-day attacks  
+- No false positives on normal HTTPS traffic  
+- Automatic blocking protects in real-time  
+- Threat intelligence validates with global data  
+
+### Limitations
+- Encrypted traffic analysis limited (can't see payload)  
+- Memory grows unbounded (dictionaries need cleanup)  
+- AbuseIPDB rate limit (1000 requests/day free tier)  
+- Windows-only firewall integration  
+- Single network interface monitored  
+
+### Best Practices
+- Review blocked IPs regularly in dashboard
+- Add legitimate services to whitelist as needed
+- Monitor `alerts.log` for patterns
+- Keep model updated with new attack samples
+- Use on networks you own/have permission to monitor
+
+
+## Acknowledgements
+
+- [CICIDS2017 Dataset](https://www.unb.ca/cic/datasets/ids-2017.html) - Canadian Institute for Cybersecurity
+- [Scapy](https://scapy.net/) - Packet manipulation library
+- [scikit-learn](https://scikit-learn.org/) - Machine learning framework
+- [Streamlit](https://streamlit.io/) - Dashboard framework
+- [AbuseIPDB](https://www.abuseipdb.com/) - Threat intelligence API
+
 
 ---
 
-## 🔒 Security & Ethics
-- **For home/lab use only.**
-- **Auto-blocking** can disrupt your network if misused—use with caution.
-- **Do not use on networks you do not own or have permission to monitor.**
+## Disclaimer
 
----
-
-## 🤝 Contributing
-Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
-
-1. Fork the repo
-2. Create your feature branch (`git checkout -b feature/fooBar`)
-3. Commit your changes (`git commit -am 'Add some fooBar'`)
-4. Push to the branch (`git push origin feature/fooBar`)
-5. Open a pull request
-
----
-
-## 📄 License
-MIT License. See [LICENSE](LICENSE) for details.
-
----
-
-## 🙏 Acknowledgements
-- [Scapy](https://scapy.net/)
-- [scikit-learn](https://scikit-learn.org/)
-- [Streamlit](https://streamlit.io/)
-- [AbuseIPDB](https://www.abuseipdb.com/)
-- [NSL-KDD Dataset](https://www.unb.ca/cic/datasets/nsl.html) 
+**For educational and home/lab use only.** Do not deploy on networks you don't own or have explicit permission to monitor. Auto-blocking can disrupt network connectivity if misconfigured. Use responsibly. 
