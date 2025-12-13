@@ -1,0 +1,4 @@
+.key
+venv/
+src/__pycache__
+data/
