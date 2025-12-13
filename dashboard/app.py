@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import time
+import subprocess
 from datetime import datetime
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'captured_packets.csv')
@@ -23,6 +24,55 @@ def load_alerts():
         return lines[-20:][::-1]  # Show last 20 alerts, newest first
     return []
 
+def load_blocked_ips():
+    """Extract blocked and unblocked IPs from alerts log"""
+    blocked = []
+    unblocked = set()
+    if os.path.exists(LOG_PATH):
+        with open(LOG_PATH, 'r') as f:
+            for line in f:
+                if 'AUTO-BLOCKED' in line:
+                    try:
+                        # Extract IP from "AUTO-BLOCKED: 185.220.101.1 - Reason: ..."
+                        parts = line.split('AUTO-BLOCKED:')[1].split(' - Reason:')
+                        ip = parts[0].strip()
+                        reason = parts[1].strip() if len(parts) > 1 else 'Unknown'
+                        blocked.append({'ip': ip, 'reason': reason})
+                    except:
+                        pass
+                elif 'UNBLOCKED' in line:
+                    try:
+                        # Extract IP from "UNBLOCKED: 185.220.101.1"
+                        ip = line.split('UNBLOCKED:')[1].strip().split()[0]
+                        unblocked.add(ip)
+                    except:
+                        pass
+    # Deduplicate by IP (keep last occurrence) and mark unblock status
+    seen = {}
+    for b in blocked:
+        seen[b['ip']] = b['reason']
+    
+    return [{'ip': ip, 'reason': reason, 'is_blocked': ip not in unblocked} 
+            for ip, reason in seen.items()]
+
+def unblock_ip(ip):
+    """Unblock an IP by removing firewall rule and logging"""
+    try:
+        cmd = f'netsh advfirewall firewall delete rule name="IDS_Block_{ip}"'
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        
+        # Check if rule was deleted or already doesn't exist
+        if result.returncode == 0 or "No rules match" in result.stdout or "No rules match" in result.stderr:
+            # Log as unblocked (even if already unblocked)
+            with open(LOG_PATH, 'a') as f:
+                f.write(f"UNBLOCKED: {ip} - Manually unblocked from dashboard at {datetime.now().isoformat()}\n")
+            return True, "Successfully unblocked (rule removed or already removed)"
+        else:
+            return False, result.stderr or "Unknown error"
+    except Exception as e:
+        return False, str(e)
+
+
 packets = load_packets()
 col1, col2 = st.columns(2)
 
@@ -41,6 +91,40 @@ with col2:
             st.error(alert.strip())
     else:
         st.success('No suspicious activity detected.')
+
+# Blocked IPs section
+st.header('🚫 IP Block Management')
+all_ips = load_blocked_ips()
+blocked_ips = [ip for ip in all_ips if ip['is_blocked']]
+unblocked_ips = [ip for ip in all_ips if not ip['is_blocked']]
+
+if blocked_ips:
+    st.write(f"**Currently blocked: {len(blocked_ips)} IPs | Previously unblocked: {len(unblocked_ips)} IPs**")
+    
+    for block in blocked_ips:
+        with st.expander(f"🔴 {block['ip']} - BLOCKED"):
+            st.write(f"**Reason:** {block['reason']}")
+            if st.button(f"Unblock {block['ip']}", key=f"unblock_{block['ip']}"):
+                success, message = unblock_ip(block['ip'])
+                if success:
+                    st.success(f"✅ {block['ip']} has been unblocked")
+                    st.rerun()
+                else:
+                    st.error(f"❌ Failed to unblock: {message}")
+    
+    if unblocked_ips:
+        st.write("---")
+        st.subheader("📜 Previously Unblocked IPs")
+        for block in unblocked_ips:
+            with st.expander(f"⚪ {block['ip']} - UNBLOCKED"):
+                st.write(f"**Original block reason:** {block['reason']}")
+                st.info("This IP was previously blocked but has been manually unblocked")
+else:
+    if unblocked_ips:
+        st.info(f'No IPs currently blocked. {len(unblocked_ips)} previously blocked IPs have been unblocked.')
+    else:
+        st.success('No IPs have been blocked yet.')
+
 
 # Sidebar: Threat Intelligence (AbuseIPDB)
 st.sidebar.header('Threat Intelligence (AbuseIPDB)')

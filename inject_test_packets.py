@@ -12,14 +12,12 @@ DATA_PATH = 'data/captured_packets.csv'
 now = datetime.now().isoformat()
 test_packets = [
     # Known malicious IPs with high abuse scores (will be blocked)
-    {'timestamp': now, 'src_ip': '185.220.101.1', 'dst_ip': '192.168.10.138', 'src_port': 12345, 'dst_port': 22, 'protocol': 'TCP', 'packet_length': 60},
-    {'timestamp': now, 'src_ip': '185.220.101.1', 'dst_ip': '192.168.10.138', 'src_port': 12346, 'dst_port': 23, 'protocol': 'TCP', 'packet_length': 60},
-    {'timestamp': now, 'src_ip': '185.220.101.2', 'dst_ip': '192.168.10.138', 'src_port': 54321, 'dst_port': 445, 'protocol': 'TCP', 'packet_length': 60},
+    {'timestamp': now, 'src_ip': '185.220.101.1', 'dst_ip': '192.168.10.138', 'src_port': 12345, 'dst_port': 22, 'protocol': 'TCP', 'packet_length': 60, 'fwd_bytes': 60, 'bwd_bytes': 0},
+    {'timestamp': now, 'src_ip': '185.220.101.1', 'dst_ip': '192.168.10.138', 'src_port': 12346, 'dst_port': 23, 'protocol': 'TCP', 'packet_length': 60, 'fwd_bytes': 60, 'bwd_bytes': 0},
+    {'timestamp': now, 'src_ip': '185.220.101.2', 'dst_ip': '192.168.10.138', 'src_port': 54321, 'dst_port': 445, 'protocol': 'TCP', 'packet_length': 60, 'fwd_bytes': 60, 'bwd_bytes': 0},
 ]
 
-print("="*70)
 print("INJECTING TEST PACKETS INTO captured_packets.csv")
-print("="*70)
 print("\nMake sure realtime_detect.py is running!")
 print("\nInjecting suspicious packets:")
 
@@ -35,4 +33,3 @@ print("\nWait 2-3 seconds, then check:")
 print("  1. Terminal running realtime_detect.py (should show ALERT messages)")
 print("  2. Dashboard at http://localhost:8501 (Recent Alerts section)")
 print("  3. data/alerts.log file")
-print("\n" + "="*70)

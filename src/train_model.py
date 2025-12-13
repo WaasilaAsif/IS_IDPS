@@ -6,7 +6,7 @@ from sklearn.preprocessing import LabelEncoder
 import joblib
 import os
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'nsl_kdd_preprocessed.csv')
+DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'cicids2017_preprocessed.csv')
 MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'rf_model.joblib')
 
 # Load data

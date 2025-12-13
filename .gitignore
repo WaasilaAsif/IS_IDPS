@@ -10,6 +10,7 @@ models/
 data/
 # ML models
 *.joblib
+models/*.joblib
 
 # VS Code
 .vscode/
