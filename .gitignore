@@ -8,3 +8,8 @@ __pycache__/
 *.pcap
 models/
 data/
+# ML models
+*.joblib
+
+# VS Code
+.vscode/
