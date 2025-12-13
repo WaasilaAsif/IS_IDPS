@@ -1,3 +1,4 @@
+
 import pandas as pd
 import joblib
 import os
@@ -5,6 +6,9 @@ from time import sleep
 from sklearn.preprocessing import LabelEncoder
 import subprocess
 import sys
+import requests
+import smtplib
+
 
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 from threat_intel import check_ip_abuse
@@ -13,14 +17,11 @@ DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'captured_pack
 MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'rf_model.joblib')
 PROTO_ENCODER_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'proto_encoder.joblib')
 LOG_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'alerts.log')
-
 ABUSEIPDB_API_KEY = os.environ.get('ABUSEIPDB_API_KEY')
 
 clf = joblib.load(MODEL_PATH)
 le_proto = joblib.load(PROTO_ENCODER_PATH)
-
 blocked_ips = set()
-
 # Map protocol string to NSL-KDD protocol_type
 PROTOCOL_MAP = {'TCP': 'tcp', 'UDP': 'udp', 'ICMP': 'icmp'}
 
