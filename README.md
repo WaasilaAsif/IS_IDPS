@@ -14,7 +14,6 @@ This project is a lightweight, AI-enhanced Intrusion Detection System (IDS) desi
 - **Threat Intelligence:** Integrates with AbuseIPDB to check IP reputation.
 - **Auto-Blocking:** Automatically blocks high-risk IPs using firewall rules (Windows only).
 - **Interactive Dashboard:** Streamlit dashboard for live traffic, alerts, and threat intelligence.
-- **Dockerized:** Easy deployment with Docker.
 
 ---
 
@@ -43,8 +42,6 @@ This project is a lightweight, AI-enhanced Intrusion Detection System (IDS) desi
 ├── src/                 # Source code (sniffer, ML, detection, threat intel)
 ├── dashboard/           # Streamlit dashboard app
 ├── requirements.txt     # Python dependencies
-├── Dockerfile           # Docker build file
-├── entrypoint.sh        # Entrypoint script for Docker
 └── README.md            # This file
 ```
 
@@ -99,34 +96,11 @@ Visit [http://localhost:8501](http://localhost:8501) in your browser.
 
 ---
 
-## 🐳 Docker Usage
-
-### 1. Build the Docker Image
-```sh
-docker build -t ai-ids .
-```
-
-### 2. Run the Container
-**On Windows (PowerShell):**
-```sh
-docker run --rm -it -p 8501:8501 -e ABUSEIPDB_API_KEY="your_api_key_here" -v "${PWD}/data:/app/data" ai-ids
-```
-**On Linux/Mac:**
-```sh
-docker run --rm -it --net=host -e ABUSEIPDB_API_KEY="your_api_key_here" -v "$(pwd)/data:/app/data" ai-ids
-```
-- The dashboard will be available at [http://localhost:8501](http://localhost:8501)
-- All data and logs are persisted in the `data/` directory on your host.
-
----
-
-## 🛠️ Troubleshooting
-- **Docker port not working on Windows/Mac:** Use `-p 8501:8501` instead of `--net=host`.
-- **Volume mount errors:** Use absolute paths or `${PWD}`/`%cd%` as appropriate for your shell.
-- **No dashboard:** Check `docker logs <container_id>` for errors.
-- **Permission errors:** Run Docker as administrator or with elevated privileges.
-- **Firewall/Antivirus:** Ensure port 8501 is open and not blocked.
-- **Packet capture permissions:** On Linux, you may need to run as root or with `--cap-add=NET_ADMIN`.
+##  ️ Troubleshooting
+- **TensorFlow install fails:** Ensure you're using Python 3.11.
+- **Dashboard not loading:** Check firewall settings and ensure port 8501 is open.
+- **Packet capture permissions:** On Linux, you may need to run as root. On Windows, run as Administrator.
+- **Model not found:** Make sure to run `train_model.py` before starting detection.
 
 ---
 

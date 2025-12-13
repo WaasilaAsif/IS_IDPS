@@ -1,3 +1,4 @@
+setup md
 # 🛡️ AI-IDPS Setup Guide
 
 > **AI-Powered Intrusion Detection & Prevention System**
@@ -14,10 +15,9 @@ This comprehensive guide explains step-by-step how to set up the AI-IDPS project
 4. [Set Up Virtual Environment](#4️⃣-set-up-virtual-environment)
 5. [Set AbuseIPDB API Key (Optional)](#5️⃣-set-abuseipdb-api-key-optional)
 6. [Running the Project](#6️⃣-running-the-project)
-7. [Docker Deployment (Optional)](#7️⃣-docker-deployment-optional)
-8. [Test Installation](#8️⃣-test-installation)
-9. [Troubleshooting](#9️⃣-troubleshooting)
-10. [Recommended Practices](#🔟-recommended-practices)
+7. [Test Installation](#7️⃣-test-installation)
+8. [Troubleshooting](#8️⃣-troubleshooting)
+9. [Recommended Practices](#9️⃣-recommended-practices)
 
 ---
 
@@ -31,7 +31,7 @@ Before you begin, ensure you have the following:
 | **Privileges** | Administrator/root access (for some setups) |
 | **Internet** | Active internet connection |
 | **Git** | Version control system installed |
-| **Docker** | *(Optional)* For containerized deployment |
+
 
 ---
 
@@ -219,39 +219,7 @@ streamlit run dashboard/app.py
 
 ---
 
-## 7️⃣ Docker Deployment (Optional)
-
-### Step 7.1: Build the Docker Image
-
-```bash
-docker build -t ai-ids .
-```
-
----
-
-### Step 7.2: Run the Container
-
-**Windows PowerShell:**
-```powershell
-docker run --rm -it -p 8501:8501 -e ABUSEIPDB_API_KEY="your_api_key_here" -v "${PWD}/data:/app/data" ai-ids
-```
-
-**Linux/Mac:**
-```bash
-docker run --rm -it --net=host -e ABUSEIPDB_API_KEY="your_api_key_here" -v "$(pwd)/data:/app/data" ai-ids
-```
-
-### Docker Quick Reference
-
-| Item | Details |
-|------|---------|
-| **Dashboard URL** | http://localhost:8501 |
-| **Data Persistence** | Logs and captured data are saved in `data/` |
-| **Port** | 8501 (Streamlit default) |
-
----
-
-## 8️⃣ Test Installation
+## 7️⃣ Test Installation
 
 Verify TensorFlow installation:
 
@@ -268,19 +236,19 @@ python -c "import tensorflow as tf; print(tf.__version__)"
 
 ---
 
-## 9️⃣ Troubleshooting
+## 8️⃣ Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
 | **TensorFlow install fails** | Ensure you're using **Python 3.11** |
 | **Multiple Python versions** | Use `py -3.11 -m venv venv` explicitly |
 | **Dashboard not loading** | Check firewall settings and ensure **port 8501** is open |
-| **Packet capture permission errors (Linux)** | Use `sudo` or add `--cap-add=NET_ADMIN` flag in Docker |
-| **Volume mount errors** | Use **absolute paths** for the `-v` argument in Docker |
+| **Packet capture permission errors (Linux)** | Use `sudo` to run with elevated privileges |
+| **Packet capture permission errors (Windows)** | Run terminal as **Administrator** |
 
 ---
 
-## 🔟 Recommended Practices
+## 9️⃣ Recommended Practices
 
 ### ✅ Best Practices Checklist
 
@@ -297,7 +265,7 @@ python -c "import tensorflow as tf; print(tf.__version__)"
 ## 📞 Need Help?
 
 If you encounter any issues not covered in this guide, please:
-1. Check the [Troubleshooting](#9️⃣-troubleshooting) section
+1. Check the [Troubleshooting](#8️⃣-troubleshooting) section
 2. Open an issue on the [GitHub repository](https://github.com/WaasilaAsif/IS_IDPS/issues)
 
 ---
