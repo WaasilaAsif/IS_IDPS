@@ -82,8 +82,8 @@ python src/sniffer.py           # Run in a separate terminal
 ### 5. (Optional) Set AbuseIPDB API Key
 Get a free API key from [AbuseIPDB](https://www.abuseipdb.com/).
 ```sh
-$env:ABUSEIPDB_API_KEY="your_api_key_here"  # Windows
-export ABUSEIPDB_API_KEY="your_api_key_here"  # Linux/Mac
+$env:ABUSEIPDB_API_KEY="31126b5cebf692c76a6b86b4470229555ccd7f35a30b8f163e83b5d8cb98936aced92735ad186c5d" # Windows
+export ABUSEIPDB_API_KEY="31126b5cebf692c76a6b86b4470229555ccd7f35a30b8f163e83b5d8cb98936aced92735ad186c5d"  # Linux/Mac
 ```
 
 ### 6. Run Real-Time Detection
