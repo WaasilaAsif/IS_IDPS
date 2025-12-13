@@ -5,6 +5,7 @@ from time import sleep
 from sklearn.preprocessing import LabelEncoder
 import subprocess
 import sys
+import ipaddress
 
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 from threat_intel import check_ip_abuse
@@ -21,17 +22,98 @@ le_proto = joblib.load(PROTO_ENCODER_PATH)
 
 blocked_ips = set()
 
+# Whitelist: Trusted IP ranges and services
+WHITELIST_RANGES = [
+    # Google
+    '142.250.0.0/15',
+    '172.217.0.0/16',
+    '216.58.192.0/19',
+    '8.8.8.0/24',          # Google DNS
+    '8.8.4.0/24',          # Google DNS
+    '108.177.0.0/16',      # Google services
+    
+    # Microsoft/Azure
+    '4.0.0.0/8',
+    '13.0.0.0/8',
+    '20.0.0.0/8',
+    '23.0.0.0/8',
+    '40.0.0.0/8',
+    '51.0.0.0/8',          # Azure EU
+    '52.0.0.0/8',
+    '104.40.0.0/13',
+    '137.116.0.0/16',
+    '168.61.0.0/16',
+    '191.232.0.0/13',
+    '199.30.16.0/20',
+    
+    # GitHub
+    '140.82.0.0/16',
+    '185.199.0.0/16',
+    '192.30.252.0/22',
+    
+    # Cloudflare
+    '104.16.0.0/12',
+    '172.64.0.0/13',
+    '1.1.1.0/24',
+    '1.0.0.0/24',
+    
+    # Amazon AWS
+    '3.0.0.0/8',
+    '15.0.0.0/8',
+    '18.0.0.0/8',
+    '35.0.0.0/8',
+    '54.0.0.0/8',
+    
+    # Akamai CDN
+    '96.0.0.0/9',
+    '104.64.0.0/10',
+    
+    # Fastly CDN
+    '151.101.0.0/16',
+    '199.232.0.0/16',
+    
+    # Common DNS Servers
+    '9.9.9.0/24',          # Quad9 DNS
+    '208.67.220.0/22',     # OpenDNS
+    '101.0.0.0/8',         # Asia Pacific DNS providers
+    '103.0.0.0/8',         # Asia Pacific providers
+    '57.0.0.0/8',          # Apple/telecom services
+    
+    # Private networks (local)
+    '192.168.0.0/16',
+    '10.0.0.0/8',
+    '172.16.0.0/12',
+]
+
+def is_whitelisted(ip):
+    """Check if an IP address is in the whitelist"""
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+        for range_str in WHITELIST_RANGES:
+            if ip_obj in ipaddress.ip_network(range_str):
+                return True
+    except ValueError:
+        pass
+    return False
+
 # Map protocol string to NSL-KDD protocol_type
 PROTOCOL_MAP = {'TCP': 'tcp', 'UDP': 'udp', 'ICMP': 'icmp'}
 
 def preprocess_row(row):
     # Map protocol to protocol_type string
     proto_type = PROTOCOL_MAP.get(str(row['protocol']).upper(), 'other')
-    row['protocol_type'] = le_proto.transform([proto_type])[0] if proto_type in le_proto.classes_ else 0
+    protocol_type_encoded = le_proto.transform([proto_type])[0] if proto_type in le_proto.classes_ else 0
     # Use src_bytes and dst_bytes as packet_length (approximation)
-    row['src_bytes'] = int(row['packet_length']) if pd.notnull(row['packet_length']) else 0
-    row['dst_bytes'] = 0  # Real-time, we don't know dst_bytes, so set to 0
-    return row
+    src_bytes = int(row['packet_length']) if pd.notnull(row['packet_length']) else 0
+    dst_bytes = 0  # Real-time, we don't know dst_bytes, so set to 0
+    
+    # Return a dict with all needed values
+    return pd.Series({
+        **row.to_dict(),
+        'protocol_type': protocol_type_encoded,
+        'src_bytes': src_bytes,
+        'dst_bytes': dst_bytes
+    })
 
 def block_ip(ip):
     if ip in blocked_ips:
@@ -50,7 +132,15 @@ def block_ip(ip):
 
 def main():
     print('Starting real-time detection with threat intelligence and auto-blocking...')
-    last_seen = 0
+    
+    # Start from the current end of the file to avoid processing old data
+    if os.path.exists(DATA_PATH):
+        df = pd.read_csv(DATA_PATH)
+        last_seen = len(df)
+        print(f'Skipping {last_seen} existing packets, monitoring for new traffic...')
+    else:
+        last_seen = 0
+    
     while True:
         if not os.path.exists(DATA_PATH):
             sleep(2)
@@ -59,14 +149,22 @@ def main():
         if len(df) == 0 or last_seen >= len(df):
             sleep(2)
             continue
+        
         new_rows = df.iloc[last_seen:]
+        print(f'Processing {len(new_rows)} new packets...')
         new_rows = new_rows.apply(preprocess_row, axis=1)
         X = new_rows[['protocol_type', 'src_bytes', 'dst_bytes']]
         preds = clf.predict(X)
+        
         for i, pred in enumerate(preds):
             if pred != 0:
                 row = new_rows.iloc[i]
                 src_ip = row['src_ip']
+                
+                # Skip whitelisted IPs
+                if is_whitelisted(src_ip):
+                    continue
+                
                 alert = f"ALERT: Suspicious activity detected: {row.to_dict()} | Predicted label: {pred}"
                 print(alert)
                 with open(LOG_PATH, 'a') as f:
