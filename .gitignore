@@ -1,16 +1,14 @@
 .key
 venv/
 src/__pycache__
-data/
+data/MachineLearningCVE/
 venv/
 __pycache__/
-*.log
 *.pcap
 models/
-data/
 # ML models
 *.joblib
-models/*.joblib
+models/rf_model.joblib
 
 # VS Code
 .vscode/
