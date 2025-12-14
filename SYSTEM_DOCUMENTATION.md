@@ -266,7 +266,23 @@ Only runs on **suspicious traffic**:
 2. **Prediction:**
    - `model.predict_proba()` returns probability of [normal, attack]
    - Attack confidence = probability of attack class
-3. **Alert Threshold:**
+3. **Port-Based Attack Classification (NEW):**
+   - **Purpose:** Provide specific attack types instead of generic labels
+   - **Method:** Maps destination ports to specific attack categories:
+     - Port 22 → SSH Brute Force (label 7)
+     - Port 23 → Telnet Attack (label 3)
+     - Port 445 → SMB Attack (label 1)
+     - Port 3389 → RDP Brute Force (label 12)
+     - Port 3306 → MySQL Attack (label 12)
+     - Port 5432 → PostgreSQL Attack (label 12)
+     - Port 27017 → MongoDB Attack (label 12)
+     - Port 6379 → Redis Attack (label 3)
+     - Port 8080/8888 → Web Admin Attack (label 18)
+     - Port 9200 → Elasticsearch Attack (label 11)
+     - Port 21 → FTP Brute Force (label 1)
+   - **Confidence:** Port-based classifications set to **95%** (high but not 100% to indicate heuristic)
+   - **Override:** Port-based prediction overrides ML model output for better attack diversity
+4. **Alert Threshold:**
    - **90% confidence:** Log alert
    - **95% confidence + attack port:** Flag for blocking
 
@@ -298,6 +314,27 @@ Four modes (evaluated in order):
 4. **Mode 4: Rate Limit Fallback**
    - AbuseIPDB unavailable (rate limited) AND IP has 5+ alerts
    - **Action:** Block (repeated suspicious behavior)
+
+**Blocking Implementation (NEW ENHANCEMENTS):**
+
+1. **Duplicate Prevention:**
+   - Maintains in-memory `blocked_ips` set to track blocked IPs in current session
+   - Before blocking, checks if IP already in set
+   - **Firewall verification:** If IP in `blocked_ips`, verifies firewall rule actually exists
+   - If rule was removed externally (dashboard unblock), removes from `blocked_ips` and re-evaluates
+   - Prevents duplicate "AUTO-BLOCKED" log entries for same IP
+   - Prevents redundant AbuseIPDB API calls for already-blocked IPs
+
+2. **Firewall Rule Check:**
+   - Before creating rule, executes: `netsh advfirewall firewall show rule name="IDS_Block_{ip}"`
+   - If rule exists (returncode=0), adds to `blocked_ips` set but doesn't log duplicate
+   - If rule doesn't exist, creates new rule and logs "AUTO-BLOCKED" message
+   - Ensures firewall rules persist across detector restarts (rules survive, memory resets)
+
+3. **Unblock Detection:**
+   - When IP in `blocked_ips` triggers new alert, checks if firewall rule still exists
+   - If rule removed via dashboard or manual `netsh delete`, removes from `blocked_ips`
+   - Allows re-blocking after manual unblock if attack continues
 
 **Step 6: Logging**
 - Writes to `alerts.log` with format:
@@ -430,6 +467,20 @@ Four modes (evaluated in order):
   - Orange: Medium confidence (80-95%)
   - Yellow: Low confidence (70-80%)
 - **Information:** Source IP, destination, port, ML confidence, abuse score, reason, blocking status
+- **Attack Type Classification (NEW):** Displays specific attack types:
+  - SSH Brute Force (port 22)
+  - Telnet Attack (port 23)
+  - FTP Brute Force (port 21)
+  - SMB Attack (port 445)
+  - RDP Brute Force (port 3389)
+  - MySQL Attack (port 3306)
+  - PostgreSQL Attack (port 5432)
+  - MongoDB Attack (port 27017)
+  - Redis Attack (port 6379)
+  - Web Admin Attack (ports 8080, 8888)
+  - Elasticsearch Attack (port 9200)
+  - Port Scan (behavioral detection)
+- **Attack Type Pie Chart:** Shows distribution of specific attack types (not generic categories)
 
 #### C. IP Block Management Section (Full Width)
 - **Data Source:** Parses `alerts.log` for "AUTO-BLOCKED" and "UNBLOCKED" entries
@@ -461,21 +512,30 @@ Four modes (evaluated in order):
 - Parses each line with regex to extract fields
 - Returns DataFrame with alert details
 
-**`load_blocked_ips()`**
-- Searches `alerts.log` for "AUTO-BLOCKED:" and "UNBLOCKED:" strings
+**`load_blocked_ips()` (ENHANCED)**
+- Searches `alerts.log` for "AUTO-BLOCKED:" entries (no longer tracks UNBLOCKED history)
 - Extracts IP address and block reason from AUTO-BLOCKED lines
-- Tracks unblocked IPs from UNBLOCKED lines
-- Uses dictionary to deduplicate (IP as key)
-- Returns list of `{ip: str, reason: str, is_blocked: bool}` objects
-- `is_blocked=True` if IP in blocked list and NOT in unblocked set
-- `is_blocked=False` if IP has been manually unblocked
+- **Firewall State Verification (NEW):** For each IP found in log:
+  - Executes: `netsh advfirewall firewall show rule name="IDS_Block_{ip}"`
+  - If returncode=0 (rule exists): Includes in blocked IPs list
+  - If returncode≠0 (rule doesn't exist): Skips IP (was unblocked or deleted)
+- **Key Improvement:** Dashboard now shows **actual firewall state**, not log history
+- Handles cases where:
+  - Rules deleted manually via `netsh` command
+  - Rules removed via dashboard unblock button
+  - Rules cleared externally but log still has AUTO-BLOCKED entries
+- Uses dictionary to deduplicate (IP as key, keeps last block reason)
+- Returns list of `{ip: str, reason: str, is_blocked: True}` objects for currently blocked IPs only
+- Previously unblocked IPs no longer displayed (only current blocks shown)
 
-**`unblock_ip(ip)`**
+**`unblock_ip(ip)` (ENHANCED)**
 - Removes Windows Firewall rule: `netsh advfirewall firewall delete rule name="IDS_Block_{ip}"`
 - Logs unblock action: "UNBLOCKED: {ip} - Manually unblocked from dashboard at {timestamp}"
 - Returns `(True, message)` on success (including if rule already removed)
 - Returns `(False, error)` on failure
 - Handles "No rules match" as success (IP effectively unblocked)
+- **Key Change:** Dashboard immediately removes IP from blocked list after unblock (uses firewall state verification)
+- **Re-blocking Support:** If unblocked IP attacks again, detector verifies firewall state and can re-block
 
 **`block_ip_dashboard(ip, reason)`**
 - Wrapper for blocking from UI

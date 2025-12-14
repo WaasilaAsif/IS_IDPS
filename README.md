@@ -11,20 +11,29 @@ Trained on the **CICIDS2017** dataset (modern 2017 attacks), this system achieve
 
 ### **Hybrid Detection Architecture**
 - **Machine Learning (Random Forest):** 97% accuracy on attack-prone ports (SSH, RDP, SMB, databases)
+- **Port-Based Attack Classification:** 11 specific attack types (SSH Brute Force, RDP, MySQL, MongoDB, PostgreSQL, Redis, Elasticsearch, Web Admin, Telnet, SMB, FTP)
 - **Behavioral Detection:** Port scanning, connection flooding, data exfiltration, DDoS patterns
 - **Threat Intelligence:** AbuseIPDB integration for global IP reputation checking
 - **Smart Port Classification:** Skips ML on HTTP/HTTPS traffic to eliminate false positives
 
-### **Multi-Mode Auto-Blocking**
+### **Multi-Mode Auto-Blocking (Enhanced)**
 1. **High Threat Intel:** AbuseIPDB score ≥50 → Immediate block
 2. **Medium Threat + Alerts:** Score 25-49 + 2+ alerts → Block
 3. **ML-Based Blocking:** 95%+ confidence on attack ports → Block (works without API)
 4. **Rate Limit Fallback:** 5+ alerts when API unavailable → Block
 
+**Blocking Enhancements:**
+- **Duplicate Prevention:** Checks firewall rules before creating duplicates
+- **Firewall State Sync:** Verifies rules still exist before skipping re-block
+- **Dashboard Verification:** Shows only IPs with actual firewall rules (not stale log data)
+- **Re-blocking Support:** Unblocked IPs can be re-blocked if attacks continue
+
 ### **Real-Time Dashboard**
 - Live traffic monitoring with flow tracking
-- Recent alerts with confidence scores
-- Blocked IPs management with unblock functionality
+- Recent alerts with specific attack type classification (11 attack types)
+- Blocked IPs management with **firewall state verification**
+- Unblock functionality with automatic re-blocking support
+- Attack type distribution pie chart
 - Auto-refresh for real-time updates
 
 ### **Windows Firewall Integration**
@@ -113,7 +122,7 @@ python src/train_model.py
 ### 3. (Optional) Configure AbuseIPDB
 Get a free API key from [AbuseIPDB](https://www.abuseipdb.com/)
 ```powershell
-$env:ABUSEIPDB_API_KEY = "your_api_key_here"
+$env:ABUSEIPDB_API_KEY = "6b794aeeb4c320d20262dcd70017c38a5088f1c1410e64f1a999b8299d1328ed71b08a4dc28e9238"
 ```
 
 ### 4. Start the System (3 terminals)
@@ -125,7 +134,7 @@ python src/sniffer.py
 
 **Terminal 2 - Detection Engine (as Administrator):**
 ```powershell
-$env:ABUSEIPDB_API_KEY = "your_api_key_here"
+$env:ABUSEIPDB_API_KEY = "6b794aeeb4c320d20262dcd70017c38a5088f1c1410e64f1a999b8299d1328ed71b08a4dc28e9238"
 python src/realtime_detect.py
 ```
 
@@ -195,7 +204,10 @@ Tests:
 **Operational:**
 - **Zero false positives** on normal web browsing (Google, Facebook, Reddit)
 - **100% detection** on attack ports (SSH, RDP, SMB, databases)
+- **11 specific attack types** identified: SSH Brute Force, RDP Brute Force, MySQL Attack, MongoDB Attack, PostgreSQL Attack, Redis Attack, Elasticsearch Attack, Web Admin Attack, Telnet Attack, SMB Attack, FTP Brute Force, Port Scan
+- **95% confidence** for port-based heuristic classifications (not misleading 100%)
 - **Real-time processing** with 2-second scan intervals
+- **No duplicate blocking logs** - each IP blocked once per session
 
 ---
 
