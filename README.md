@@ -122,7 +122,7 @@ python src/train_model.py
 ### 3. (Optional) Configure AbuseIPDB
 Get a free API key from [AbuseIPDB](https://www.abuseipdb.com/)
 ```powershell
-$env:ABUSEIPDB_API_KEY = "6b794aeeb4c320d20262dcd70017c38a5088f1c1410e64f1a999b8299d1328ed71b08a4dc28e9238"
+$env:ABUSEIPDB_API_KEY = "<your-abuseipdb-api-key>"
 ```
 
 ### 4. Start the System (3 terminals)
@@ -134,8 +134,7 @@ python src/sniffer.py
 
 **Terminal 2 - Detection Engine (as Administrator):**
 ```powershell
-$env:ABUSEIPDB_API_KEY = "6b794aeeb4c320d20262dcd70017c38a5088f1c1410e64f1a999b8299d1328ed71b08a4dc28e9238"
-python src/realtime_detect.py
+$env:ABUSEIPDB_API_KEY = "<your-abuseipdb-api-key>"
 ```
 
 **Terminal 3 - Dashboard:**
